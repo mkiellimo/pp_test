@@ -1,0 +1,265 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Orders show{% endblock %}
+
+{% block body %}
+<style>
+    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
+    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+    h1{ font-size: 20px; color: #3b3b3b;}
+    h2{ font-size: 15px; color: #3b3b3b; text-align: center; font-weight: bold}
+    .table {font-size: 14px}
+    table .table.details thead tr:first-child{
+        background: white;
+    }
+    .js_totalAmount{text-align: right}
+    .orders{
+        padding:20px;
+    }
+    td.js_total{
+        font-weight: bold;
+    }
+    td.price{
+        text-align: right;
+    }
+    td.price::after {
+        content: " $";
+    }
+
+    td.canceled.bad,td.paymentStatus.bad{
+        color: #C82829;
+    }
+
+</style>
+
+<div class="container orders">
+
+    <div class="row">
+        <div class="col"><h1>Orders</h1></div>
+    </div>
+
+
+    <div id="table-wrap">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>&nbsp;</th>
+                <th><span>OrderId</span>
+                </th>
+                <th><span>Phone</span></th>
+                <th><span>Shipping Status</span></th>
+                <th><span>Shipping Price</span></th>
+                <th><span>Shipping Payment Status</span></th>
+                <th><span>Payment Status</span></th>
+                <th><span>Total</span></th>
+                <th>&nbsp;</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for order in orders %}
+                <tr data-href="{{ order.order_id }}">
+                    <td>
+                        <input class="open" type="button" name="" value="open" data-href="{{ order.order_id }}">
+                    </td>
+
+                    <td id="order_{{ order.order_id }}_id" >{{ order.order_id }}</td>
+                    <td id="order_{{ order.order_id }}_phone" >{{ order.phone }}</td>
+                    <td id="order_{{ order.order_id }}_shipping_status" >{{ order.shipping_status }}</td>
+                    <td id="order_{{ order.order_id }}_shipping_price" class="price">{{ order.shipping_price }}</td>
+                    <td id="order_{{ order.order_id }}_shipping_payment_status">{{ order.shipping_payment_status }}</td>
+                    <td class="paymentStatus" id="order_{{ order.order_id }}_payment_status">{{ order.payment_status }}</td>
+                    <td class="price js_sumTot" id="{{ order.order_id }}_total"></td>
+                    <td>
+                        <input class="refresh" type="button" name="" value="refresh">
+                    </td>
+
+                </tr>
+            {% endfor %}
+            <tr><th align="right" colspan="7">Total</th><td id="TotalOrder" class="price js_total"></td></tr>
+            </tbody>
+        </table>
+
+        {% for order in orders %}
+        <div class="content" id="{{ order.order_id }}">
+
+            <h2>Dettaglio ordine n° {{ order.order_id }}</h2>
+
+            <table class="table table-sm table-bordered details table-striped">
+                <thead>
+                <tr>
+                    <th>Barcode</th>
+                    <th>Tax_perc</th>
+                    <th>Tax_amt</th>
+                    <th>Quantity</th>
+                    <th>Tracking Number</th>
+                    <th>Canceled</th>
+                    <th>Shipping Status</th>
+                    <th>Cost</th>
+                    <th>Price</th>
+                </tr>
+                </thead>
+                <tbody id="orderItems_{{ order.order_id }}">
+                {% for item in order.ordersItems %}
+                <tr id="orderItem_{{ order.order_id }}">
+                    <td>{{ item.barcode }}</td>
+                    <td class="price">{{ item.tax_perc }}</td>
+                    <td class="price">{{ item.tax_amt }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.tracking_number }}</td>
+                    <td class="canceled">{{ item.canceled }}</td>
+                    <td>{{ item.shipped_status_sku }}</td>
+                    <td class="price">{{ item.cost }}</td>
+                    <td class="price js_sum">{{ item.price }}</td>
+                </tr>
+                {% endfor %}
+                <tr><th align="right" colspan="8">Total</th><td id="{{ order.order_id }}_subtot" class="price js_subtotal"></td></tr>
+
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+
+        <!-- content3 -->
+
+    </div>
+
+
+
+
+
+
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+    <script>
+
+        function updateRowOrder(order){
+            var fields=["id","phone","shipping_status","shipping_price","shipping_payment_status","payment_status"];
+
+            for (i = 0; i < fields.length; i++) {
+                $("td#order_"+order.order_id+"_"+fields[i]).text(order[fields[i]]);
+            }
+
+
+        }
+
+
+        function updateOrderItems(orderId,orderItems){
+
+            let newRow='<tbody id="orderItems_'+orderId+'">';
+            for (i = 0; i < orderItems.length; i++) {
+                newRow += '<tr id="orderItem_'+orderId+ '">' +
+                  '<td>' + orderItems[i].barcode + '</td>' +
+                  '<td class="price">' + orderItems[i].tax_perc + '</td>' +
+                  '<td class="price">' + orderItems[i].tax_amt + '</td>' +
+                  '<td>' + orderItems[i].quantity + '</td>' +
+                  '<td>' + orderItems[i].tracking_number + '</td>' +
+                  '<td class="canceled">' + orderItems[i].canceled + '</td>' +
+                  '<td>' + orderItems[i].shipped_status_sku + '</td>' +
+                  '<td class="price">' + orderItems[i].cost + '</td>' +
+                  '<td class="price js_sum">' + orderItems[i].price + '</td>' +
+                  '</tr>';
+            }
+            newRow+= '<tr><th align="right" colspan="8">Sum</th><td id="'+orderId+'_subtot" class="price js_subtotal"></td></tr>';
+            $('#orderItems_' + orderId).replaceWith(newRow);
+        }
+
+
+        function calcTotal (selector,classOperation,orderId) {
+
+            $(selector).each(function () {
+                debugger;
+                var total = 0,
+                  column = $(this).siblings(selector).addBack().index(this);
+                $(this).parents().prevUntil(':has(' + selector + ')').each(function () {
+
+                         let classThis=$(this).attr("id");
+                         if ((orderId===undefined) || ((classThis!==undefined) && (classThis.includes(orderId)) && !(classThis.includes('nopaid')) )) {
+
+                            let canceled=$('td.canceled:eq(' + column + ')', this).html();
+                            let paymentStatus=$('td.paymentStatus:eq(' + column + ')', this).html();
+                             $('td.canceled:eq(' + column + ')', this).removeClass('bad');
+                             $('td.paymentStatus:eq(' + column + ')', this).removeClass('bad');
+
+                            if ((canceled!=="Y") && (paymentStatus!=="not paid")){
+                                total += parseFloat($('td.'+classOperation+':eq(' + column + ')', this).html()) || 0;
+                            }else{
+                                if (canceled==="Y"){
+                                    $('td.canceled:eq(' + column + ')', this).addClass('bad');
+                                }
+                                if (paymentStatus==="not paid"){
+                                    $('td.paymentStatus:eq(' + column + ')', this).addClass('bad');
+                                }
+
+                            }
+
+                            if ((classThis !==undefined) && (classThis.includes("orderItem_"))) {
+                                classThis=classThis.replace("orderItem_","");
+                                $("td#" + classThis + "_total").text(total.toFixed(2));
+                            }
+                        }
+
+                });
+
+                $(this).html(total.toFixed(2));
+
+            });
+
+
+        }
+
+
+        $( document ).ready(function() {
+            $('.content').hide();
+
+            $("input.open").click(function () {
+                if ($('tr#' + $(this).data("href")).is(":visible")) {
+                    $(this).prop("value","open");
+                    $('tr#' + $(this).data("href")).remove();
+                } else {
+                    $(this).prop("value","close");
+
+                    $(this).closest('tr').after('<tr class="no" id="' + $(this).data("href") + '"><td colspan="8">' + $('#' + $(this).data("href")).html() + '</td></tr>');
+                }
+            });
+
+            $("input.refresh").click(function () {
+                var api_url = '/api/get_order';
+                $.ajax({
+                    url: api_url,
+                    contentType: "application/json",
+                    dataType: 'json',
+                    data: {
+                        "order_id": $(this).closest("tr").data("href"),
+                    },
+                    type: "GET",
+                    success: function(response){
+
+                        var order=response["data"].order;
+                        var items=response["data"].items;
+                        updateRowOrder(order);
+                        updateOrderItems(order.order_id,items);
+                        calcTotal("#"+order.order_id+"_subtot",'js_sum',order.order_id);
+                        calcTotal('td.js_total','js_sumTot')
+                    },
+                    error: function(xhr, textStatus, error){
+                        alert('Error on call to server.Retry');
+                        console.log(xhr.statusText);
+                        console.log(textStatus);
+                        console.log(error);
+                    }
+                })
+            });
+        });
+
+
+            calcTotal('td.js_subtotal','js_sum');
+            calcTotal('td.js_total','js_sumTot');
+
+
+
+
+    </script>
+{% endblock %}
